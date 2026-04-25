@@ -6,7 +6,7 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
 } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +17,8 @@ interface UserProfile {
   email: string;
   createdAt: string;
   eligible: boolean;
+  dob?: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -24,6 +26,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -31,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
+  updateProfile: async () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -42,10 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      // Resolve loading immediately based on auth state — don't wait for Firestore
       setLoading(false);
 
-      // Fetch Firestore profile in background (non-blocking)
       if (firebaseUser) {
         getDoc(doc(db, 'users', firebaseUser.uid))
           .then((docSnap) => {
@@ -61,8 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    // Safety timeout — if Firebase never responds in 5s, unblock the app
-    const timeout = setTimeout(() => setLoading(false), 5000);
+    const timeout = setTimeout(() => {
+      setLoading((prev) => {
+        if (prev) console.log('Auth safety timeout reached');
+        return false;
+      });
+    }, 3000);
 
     return () => {
       unsubscribe();
@@ -77,8 +83,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/');
   };
 
+  const updateProfile = async (data: Partial<UserProfile>) => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    await setDoc(userRef, data, { merge: true });
+    // Update local state
+    setProfile((prev) => prev ? { ...prev, ...data } : null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

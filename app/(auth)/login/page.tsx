@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -9,24 +9,18 @@ import { useAuth } from '@/context/AuthContext';
 import { Mail, Lock, Eye, EyeOff, Vote, ArrowRight } from 'lucide-react';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import PublicRoute from '@/components/auth/PublicRoute';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
 
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Already logged in → redirect to dashboard without full reload
-  useEffect(() => {
-    if (!authLoading && user) {
-      router.push(redirect);
-    }
-  }, [user, authLoading, router, redirect]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -55,16 +49,6 @@ function LoginForm() {
       setLoading(false);
     }
   };
-
-  // Show spinner while auth loads or while redirecting after login
-  if (authLoading || user) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-slate-400 text-sm">Redirecting to dashboard...</p>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
@@ -151,7 +135,9 @@ export default function LoginPage() {
         <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
       </div>
     }>
-      <LoginForm />
+      <PublicRoute>
+        <LoginForm />
+      </PublicRoute>
     </Suspense>
   );
 }

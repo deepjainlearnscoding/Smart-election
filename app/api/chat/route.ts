@@ -1,58 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// Initialize Gemini
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 const SYSTEM_PROMPT = `You are an expert Election Guide AI Assistant for Indian elections. Your role is to help citizens understand:
 - Voter registration process and requirements
-- Documents needed to vote (Voter ID, Aadhaar, etc.)
-- How to find polling booths
+- Documents needed to vote (Voter ID, Aadhaar, DigiLocker, etc.)
+- How to find polling booths and check eligibility
 - Election timeline and key dates
-- Voting day procedures
-- Electoral roll verification
-- How to check voter ID application status
-- Rights of voters
+- Voting day procedures and rights
 
 Guidelines:
-- Always respond in simple, clear English (unless asked otherwise)
-- Use numbered steps for procedures
-- Be encouraging and civic-minded
-- Keep responses concise (3-5 sentences or a short list)
-- If asked about something unrelated to elections, politely redirect
-- Always end with a helpful tip or next step`;
+- Respond in simple, clear English.
+- Use bullet points for steps.
+- Be encouraging and neutral.
+- Keep responses concise.
+- If the question is not about elections, politely redirect.
+- Always end with a helpful tip.`;
 
 export async function POST(req: NextRequest) {
   try {
     const { messages, userMessage } = await req.json();
 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    if (!process.env.GEMINI_API_KEY) {
+      return NextResponse.json({ response: "AI Key is missing. Please check your .env.local file." });
+    }
 
-    const history = (messages || []).map((msg: { role: string; content: string }) => ({
-      role: msg.role === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.content }],
-    }));
+    // Try a few model variations in case one is restricted or missing
+    const modelNames = ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro'];
+    let response = '';
+    let lastError = '';
 
-    const chat = model.startChat({
-      history: [
-        { role: 'user', parts: [{ text: 'You are an election guide assistant.' }] },
-        { role: 'model', parts: [{ text: SYSTEM_PROMPT }] },
-        ...history,
-      ],
-      generationConfig: {
-        maxOutputTokens: 500,
-        temperature: 0.7,
-      },
-    });
+    for (const modelName of modelNames) {
+      try {
+        const model = genAI.getGenerativeModel({ 
+          model: modelName,
+          safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+          ]
+        });
 
-    const result = await chat.sendMessage(userMessage);
-    const response = result.response.text();
+        // Simple direct prompt for max reliability
+        const prompt = `${SYSTEM_PROMPT}\n\nContext: ${JSON.stringify(messages.slice(-5))}\n\nUser Question: ${userMessage}\n\nResponse:`;
+        
+        const result = await model.generateContent(prompt);
+        response = result.response.text();
+        
+        if (response) break; // Success!
+      } catch (err: any) {
+        lastError = err.message;
+        console.warn(`Model ${modelName} failed:`, lastError);
+        continue; // Try next model
+      }
+    }
+
+    if (!response) {
+      throw new Error(lastError || 'All models failed to respond');
+    }
 
     return NextResponse.json({ response });
-  } catch (error) {
-    console.error('Chat API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to get AI response. Please check your GEMINI_API_KEY.' },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error('Gemini API Ultimate Error:', error);
+    
+    let friendlyMessage = "I'm having trouble connecting to my brain right now! 🧠";
+    
+    if (error.message?.includes('403') || error.message?.includes('API_KEY_INVALID')) {
+      friendlyMessage = "The API key provided is invalid or unauthorized. Please check your AI Studio settings.";
+    } else if (error.message?.includes('429')) {
+      friendlyMessage = "I've hit a usage limit. Please wait a moment before asking again.";
+    } else if (error.message?.includes('404')) {
+      friendlyMessage = "The AI model is currently unavailable in your region. Please try again later.";
+    }
+
+    return NextResponse.json({ 
+      response: `${friendlyMessage} However, as an election guide, I can remind you that you can always check your voter status on the official NVSP portal.`,
+      debugError: error.message
+    });
   }
 }

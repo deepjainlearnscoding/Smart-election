@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import {
-  Home,
   LayoutDashboard,
   Bot,
   CalendarDays,
@@ -16,16 +15,17 @@ import {
   Vote,
   LogOut,
   User,
+  Mail,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navLinks = [
-  { href: '/', label: 'Home', icon: Home, authHref: '/dashboard' },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, authHref: '/dashboard' },
-  { href: '/assistant', label: 'AI Assistant', icon: Bot, authHref: '/assistant' },
-  { href: '/timeline', label: 'Timeline', icon: CalendarDays, authHref: '/timeline' },
-  { href: '/map', label: 'Polling Info', icon: MapPin, authHref: '/map' },
-  { href: '/misinformation', label: 'Fact Check', icon: ShieldCheck, authHref: '/misinformation' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/assistant', label: 'AI Assistant', icon: Bot },
+  { href: '/timeline', label: 'Timeline', icon: CalendarDays },
+  { href: '/map', label: 'Polling Info', icon: MapPin },
+  { href: '/misinformation', label: 'Fact Check', icon: ShieldCheck },
 ];
 
 export default function Navbar() {
@@ -33,6 +33,12 @@ export default function Navbar() {
   const { user, profile, signOut, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  // Filter links based on auth state (Requirement #6)
+  const visibleLinks = navLinks.filter(({ href }) => {
+    // Only show these links if logged in
+    return user;
+  });
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -69,13 +75,12 @@ export default function Navbar() {
 
             {/* Desktop Nav Links */}
             <div className="hidden lg:flex items-center gap-1">
-              {navLinks.map(({ href, label, icon: Icon, authHref }) => {
-                const resolvedHref = user ? authHref : href;
-                const isActive = pathname === resolvedHref || pathname === href;
+              {user && visibleLinks.map(({ href, label, icon: Icon }) => {
+                const isActive = pathname === href;
                 return (
                   <Link
                     key={href}
-                    href={resolvedHref}
+                    href={href}
                     className={cn(
                       'relative flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group',
                       isActive ? 'text-white' : 'text-slate-400 hover:text-white'
@@ -100,14 +105,22 @@ export default function Navbar() {
                 <div className="w-8 h-8 rounded-full bg-white/10 animate-pulse" />
               ) : user ? (
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 glass px-3 py-1.5 rounded-xl">
+                  {/* Profile Link */}
+                  <Link
+                    href="/profile"
+                    className={cn(
+                      "flex items-center gap-2 glass px-3 py-1.5 rounded-xl hover:bg-white/10 transition-all duration-200",
+                      pathname === '/profile' && "bg-white/10 border-violet-500/30"
+                    )}
+                  >
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
                       <User className="w-4 h-4 text-white" />
                     </div>
                     <span className="text-sm text-white/80 font-medium">
                       {profile?.name?.split(' ')[0] || 'User'}
                     </span>
-                  </div>
+                  </Link>
+
                   <button
                     id="navbar-signout-btn"
                     onClick={signOut}
@@ -160,7 +173,7 @@ export default function Navbar() {
           />
           {/* Drawer */}
           <div className="absolute top-16 right-0 bottom-0 w-72 glass-strong border-l border-white/10 flex flex-col p-4 gap-2 animate-slide-in-right">
-            {navLinks.map(({ href, label, icon: Icon }) => {
+            {visibleLinks.map(({ href, label, icon: Icon }) => {
               const isActive = pathname === href;
               return (
                 <Link
