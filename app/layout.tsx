@@ -35,7 +35,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
-      <body className="min-h-screen bg-slate-950 text-white antialiased">
+      <body className="min-h-screen text-white antialiased">
         <AuthProvider>
           <Navbar />
           <main className="pt-16">{children}</main>

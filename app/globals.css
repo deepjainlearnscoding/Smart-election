@@ -19,14 +19,64 @@
     scroll-behavior: smooth;
   }
 
+  /* ── Global glassmorphism background — dark charcoal + white orbs ── */
   body {
     font-family: var(--font-inter), system-ui, sans-serif;
-    background-color: #020617;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 50% 80%, rgba(236, 72, 153, 0.05) 0%, transparent 50%);
-    background-attachment: fixed;
+    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
+    overflow-x: hidden;
+    /* Dark charcoal-navy base — matches the reference image */
+    background-color: #171c2b;
+  }
+
+  /* Fixed full-viewport dark base layer — covers every corner */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    background:
+      /* subtle cool-dark gradient for depth */
+      radial-gradient(ellipse 120% 120% at 50% 50%, #1e2438 0%, #111520 60%, #0d1018 100%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+  }
+
+  /* White/silver glowing orbs — animated, matching reference image blobs */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      /* top-centre large orb */
+      radial-gradient(ellipse 38% 32% at 50%  2%,  rgba(220, 230, 255, 0.55) 0%, transparent 75%),
+      /* top-left medium orb */
+      radial-gradient(ellipse 26% 28% at 18%  8%,  rgba(210, 220, 255, 0.45) 0%, transparent 75%),
+      /* top-right medium orb */
+      radial-gradient(ellipse 28% 26% at 82%  6%,  rgba(215, 225, 255, 0.42) 0%, transparent 75%),
+      /* left-centre large orb */
+      radial-gradient(ellipse 30% 34% at 4%   48%, rgba(220, 228, 255, 0.48) 0%, transparent 75%),
+      /* right-centre large orb */
+      radial-gradient(ellipse 32% 30% at 96%  42%, rgba(218, 226, 255, 0.46) 0%, transparent 75%),
+      /* bottom-centre medium orb */
+      radial-gradient(ellipse 28% 26% at 50%  96%, rgba(210, 220, 255, 0.40) 0%, transparent 75%),
+      /* bottom-left small orb */
+      radial-gradient(ellipse 22% 24% at 14%  88%, rgba(215, 225, 255, 0.38) 0%, transparent 75%),
+      /* bottom-right small orb */
+      radial-gradient(ellipse 24% 22% at 86%  90%, rgba(218, 228, 255, 0.38) 0%, transparent 75%);
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    animation: orbDrift 20s ease-in-out infinite alternate;
+  }
+
+  @keyframes orbDrift {
+    0%   { opacity: 1;    transform: scale(1)    translate(0px,   0px); }
+    33%  { opacity: 0.88; transform: scale(1.03) translate(-8px,  10px); }
+    66%  { opacity: 0.94; transform: scale(0.98) translate(10px,  -8px); }
+    100% { opacity: 1;    transform: scale(1)    translate(0px,   0px); }
   }
 }
 
